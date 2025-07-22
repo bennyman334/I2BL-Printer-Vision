@@ -16,7 +16,7 @@ result = client.run_workflow(
     workspace_name="circledetection-gtnkk",
     workflow_id="custom-workflow-3",
     images={
-        "image": "pic.png"
+        "image": "test_img1.jpg"
     },
     use_cache=True # cache workflow definition for 15 minutes
 )
@@ -44,7 +44,7 @@ for det in detections_list:
 print(centers)
 
 
-img = cv2.imread('pic.png')  # Use your actual image filename
+img = cv2.imread('test_img1.jpg')  # Use your actual image filename
 for center in centers:
     x, y = int(center[0]), int(center[1])  # Convert to int for pixel indices
     cv2.circle(img, (x, y), radius=5, color=(0, 0, 255), thickness=-1)  # (B, G, R), so (0, 0, 255) is red

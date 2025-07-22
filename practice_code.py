@@ -3,7 +3,7 @@ import numpy as np
 import os
 import sendPython 
 from datetime import datetime 
-
+#12
 CAPTURE_DIR = "captures"
 if not os.path.exists(CAPTURE_DIR):
     os.makedirs(CAPTURE_DIR)
