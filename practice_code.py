@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import os
-import sendPython 
+#import sendPython 
 from datetime import datetime 
 #12
 CAPTURE_DIR = "captures"
