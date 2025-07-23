@@ -195,9 +195,7 @@ while True:
             if steady_detection_count >= STEADY_THRESHOLD and not auto_capture_done:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 captured_image = display_frame.copy()
-                green_box = detect_green_region(captured_image)
-                if green_box is not None:
-                    PIXELS_PER_MM = calibration(green_box, 2.5)
+                green_box = detect_green_region(captured_image, captured_image)
                 filename = f"{CAPTURE_DIR}/auto_capture_{timestamp}.png"
                 cv2.imwrite(filename, captured_image)
                 print(f"[AUTO] Saved auto-capture as {filename}")
