@@ -120,13 +120,12 @@ def detect_green_region(frame: np.ndarray, debug_draw: np.ndarray = None) -> tup
     if contours:
         largest = max(contours, key=cv2.contourArea)
         rect = cv2.minAreaRect(largest) #(center(x, y), (width, height), angle)
-        box = cv2.boxPoints(rect)
         box = np.round(cv2.boxPoints(rect)).astype(int) #Convert to integer coordinates
 
         if debug_draw is not None:
             cv2.drawContours(debug_draw, [box], 0, (0, 0, 255), 2)
 
-        return box 
+        return box, rect[1] 
     return None
 
 cv2.setMouseCallback("Alignment", lambda *args : None)
@@ -195,15 +194,22 @@ while True:
             if steady_detection_count >= STEADY_THRESHOLD and not auto_capture_done:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 captured_image = display_frame.copy()
-                green_box = detect_green_region(captured_image, captured_image)
+                result = detect_green_region(captured_image, captured_image)
                 filename = f"{CAPTURE_DIR}/auto_capture_{timestamp}.png"
                 cv2.imwrite(filename, captured_image)
                 print(f"[AUTO] Saved auto-capture as {filename}")
 
                 #Detect and draw green tape box 
                 green_box = detect_green_region(display_frame, display_frame)
-                if green_box is not None:
+                if result is not None:
+                    green_box, (w_px, h_px) = result
                     PIXELS_PER_MM = calibration(green_box, 23.5)
+                    
+                    length_mm = float(max(w_px, h_px) / PIXELS_PER_MM)
+                    width_mm = float(min(w_px, h_px) / PIXELS_PER_MM)
+                    size_array = [round(length_mm, 2), round(width_mm, 2)]
+                    
+                    print(f'[SIZE] Tape dimensions: {size_array}')
                 
                 auto_capture_done = True 
         else:
