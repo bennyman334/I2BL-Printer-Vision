@@ -21,7 +21,8 @@ while True:
         break
 
     cv2.imshow('Adjust Focus - Press SPACE to Start', frame)
-
+    h, w = frame.shape[:2]
+    print("Height:", h, "Width:", w)
     key = cv2.waitKey(1) & 0xFF
     if key == ord(' '):  # SPACE to continue
         print("Starting processing...")
