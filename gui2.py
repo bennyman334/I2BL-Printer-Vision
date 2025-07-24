@@ -5,12 +5,15 @@ import threading
 import camFeed
 import subprocess
 import ast
+import livefeed_measurements
+import numpy as np
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
 venv_python = "/Users/abdulsalamraja/extrusionTargetI2BL/rfenv/bin/python"
 target_script = "/Users/abdulsalamraja/extrusionTargetI2BL/locateCircles.py"
+
 
 class DashboardApp(ctk.CTk):
     def __init__(self):
@@ -21,6 +24,8 @@ class DashboardApp(ctk.CTk):
         self.resizable(True, True)
 
         self.centers = []
+        self.calavg = 0.0
+        self.imageCenter = (0,0)
 
         # Sidebar
         self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=10)
@@ -46,6 +51,22 @@ class DashboardApp(ctk.CTk):
             height=40,
             fg_color="#23272e",
             command=self.run_target,
+        ).pack(fill="x", padx=20, pady=(0, 12))
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="Run Conversion",
+            height=40,
+            fg_color="#23272e",
+            command=self.run_conversion,
+        ).pack(fill="x", padx=20, pady=(0, 12))
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="Find top Right",
+            height=40,
+            fg_color="#23272e",
+            command=self.find_top_right,
         ).pack(fill="x", padx=20, pady=(0, 12))
 
         # Main camera area (fills almost all the right side)
@@ -96,6 +117,18 @@ class DashboardApp(ctk.CTk):
         self.show_toast("Snapshot Taken")
         threading.Thread(target=camFeed.main, daemon=True).start()
 
+    def run_conversion(self):
+        self.show_toast("Running Conversion")
+        self.calavg = livefeed_measurements.main()  # Just call directly, no thread
+        print("SELF", self.calavg)
+
+
+    # def run_conversion(self):
+    #     ret, frame = self.cap.read()
+    #     self.show_toast("Running Conversion")
+    #     calConst = threading.Thread(target=detect_green_region(frame,25.6,6.96), daemon=True).start()
+    #     print(calConst)
+
     def show_toast(self, message, duration=2000):
         # Dimensions
         width = 320
@@ -128,12 +161,40 @@ class DashboardApp(ctk.CTk):
                     cv2.circle(frame, (x, y), radius=1, color=(0, 0, 255), thickness=3)
                 except Exception as e:
                     print("Error drawing center:", center, e)
+
+            # Draw a blue dot in the center of the frame
+            h, w = frame.shape[:2]
+            center_x, center_y = w // 2, h // 2
+            self.imageCenter=(center_x,center_y)
+            cv2.circle(frame, (center_x, center_y), radius=4, color=(255, 0, 0), thickness=3)  # Blue dot
+
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(frame)
             imgtk = ImageTk.PhotoImage(image=img)
             self.img_label.configure(image=imgtk, text="")  # Update the image
-            self.img_label.image = imgtk                   # Store reference!
+            self.img_label.image = imgtk        
+            
+            
+                       # Store reference!
         self.after(30, self.update_camera_feed)
+
+
+    def find_top_right(self):
+        # Sort centers by x value in descending order and take the top 3
+        top_three = sorted(self.centers, key=lambda c: c[0], reverse=True)[:3]
+        minimum = top_three[0]
+        for i in top_three: 
+            if i[1]<minimum[1]: 
+                minimum = i 
+        
+        num_min = np.array(minimum)
+        image_center = np.array(self.imageCenter)
+        vect = num_min-image_center
+        vect_normalized = vect*self.calavg
+        print(vect, vect_normalized)
+            
+
+
 
     def toggle_mode(self):
         mode = ctk.get_appearance_mode()
