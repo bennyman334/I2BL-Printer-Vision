@@ -3,6 +3,7 @@ import time
 import os
 
 
+
 def main():
 # Create an output directory to save the screenshot
     output_dir = "frames"
@@ -32,8 +33,6 @@ def main():
             cv2.imwrite(filename, rotated_frame)
             print(f"Screenshot saved as {filename} (rotated 90 degrees right)")
             screenshot_taken = True
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
