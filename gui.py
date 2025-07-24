@@ -90,12 +90,13 @@ def update_camera_feed():
             try:
                 x, y = int(center[0]), int(center[1])
                 # Draw a red dot: after cvtColor!
-                cv2.circle(frame, (x, y), radius=7, color=(0, 0, 255), thickness=10)  # BGR for OpenCV
+                cv2.circle(frame, (x, y), radius=1, color=(0, 0, 255), thickness=3)  # BGR for OpenCV
             except Exception as e:
                 print("Error drawing center:", center, e)
         # Convert BGR to RGB
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         # Resize to match GUI
+       # frame = cv2.resize(frame, (400, 350))
         img = Image.fromarray(frame)
         imgtk = ImageTk.PhotoImage(image=img)
         image_label.imgtk = imgtk  # Keep reference!
