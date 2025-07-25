@@ -7,6 +7,7 @@ import subprocess
 import ast
 import livefeed_measurements
 import numpy as np
+from sendPython import sendToPoints
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -63,7 +64,7 @@ class DashboardApp(ctk.CTk):
 
         ctk.CTkButton(
             self.sidebar,
-            text="Find top Right",
+            text="Home (Top Right)",
             height=40,
             fg_color="#23272e",
             command=self.find_top_right,
@@ -166,7 +167,7 @@ class DashboardApp(ctk.CTk):
             h, w = frame.shape[:2]
             center_x, center_y = w // 2, h // 2
             self.imageCenter=(center_x,center_y)
-            cv2.circle(frame, (center_x, center_y), radius=4, color=(255, 0, 0), thickness=3)  # Blue dot
+            cv2.circle(frame, (center_x, center_y), radius=1, color=(255, 0, 0), thickness=3)  # Blue dot
 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             img = Image.fromarray(frame)
@@ -192,6 +193,7 @@ class DashboardApp(ctk.CTk):
         vect = num_min-image_center
         vect_normalized = vect*self.calavg
         print(vect, vect_normalized)
+        sendToPoints(vect_normalized[1], vect_normalized[0])
             
 
 
