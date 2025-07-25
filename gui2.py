@@ -8,6 +8,12 @@ import ast
 import livefeed_measurements
 import numpy as np
 from sendPython import sendToPoints
+import serial.tools.list_ports
+
+def list_serial_ports():
+    """Returns a list of available serial port device names."""
+    return [port.device for port in serial.tools.list_ports.comports()]
+
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -37,6 +43,28 @@ class DashboardApp(ctk.CTk):
             text="   Microneedle Assembly Assistant   ",
             font=ctk.CTkFont(size=20, weight="bold")
         ).pack(pady=(20, 40))
+
+        self.port_var = ctk.StringVar()
+        self.port_dropdown = ctk.CTkComboBox(
+            self.sidebar,
+            variable=self.port_var,
+            values=list_serial_ports(),
+            width=180,
+            state="readonly",
+            font=ctk.CTkFont(size=14),
+        )
+        self.port_dropdown.pack(pady=(0, 18), padx=20)
+        self.refresh_ports_button = ctk.CTkButton(
+            self.sidebar,
+            text="🔄 Refresh Ports",
+            height=28,
+            fg_color="#23272e",
+            font=ctk.CTkFont(size=14),
+            command=self.refresh_ports
+        )
+        self.refresh_ports_button.pack(fill="x", padx=20, pady=(0, 16))
+
+
 
         ctk.CTkButton(
             self.sidebar,
@@ -89,6 +117,16 @@ class DashboardApp(ctk.CTk):
         self.cap = cv2.VideoCapture(0)
         self.update_camera_feed()
 
+    def refresh_ports(self):
+        ports = list_serial_ports()
+        self.port_dropdown.configure(values=ports)
+        # Optional: select the first port automatically
+        if ports:
+            self.port_var.set(ports[0])
+        else:
+            self.port_var.set('')
+
+    
     def run_target(self):
         self.show_toast("Calibrating ...")
         def calibration_task():
