@@ -18,8 +18,8 @@ def list_serial_ports():
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-venv_python = "/Users/abdulsalamraja/extrusionTargetI2BL/rfenv/bin/python"
-target_script = "/Users/abdulsalamraja/extrusionTargetI2BL/locateCircles.py"
+venv_python = "/Users/benjaminli/Documents/Research Documents/I2BL Lab/I2BL-Printer-Vision/rfenv/bin/python"
+target_script = "/Users/benjaminli/Documents/Research Documents/I2BL Lab/I2BL-Printer-Vision/locateCircles.py"
 
 
 class DashboardApp(ctk.CTk):
@@ -33,6 +33,8 @@ class DashboardApp(ctk.CTk):
         self.centers = []
         self.calavg = 0.0
         self.imageCenter = (0,0)
+
+        self.displacements = []
 
         # Sidebar
         self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=10)
@@ -97,6 +99,14 @@ class DashboardApp(ctk.CTk):
             fg_color="#23272e",
             command=self.find_top_right,
         ).pack(fill="x", padx=20, pady=(0, 12))
+
+        # ctk.CTkButton(
+        #     self.sidebar,
+        #     text="Move to Points",
+        #     height=40,
+        #     fg_color="#23272e",
+        #     command=self.find_top_right,
+        # ).pack(fill="x", padx=20, pady=(0, 12))
 
         # Main camera area (fills almost all the right side)
         self.camera_panel = ctk.CTkFrame(
@@ -231,10 +241,7 @@ class DashboardApp(ctk.CTk):
         vect = num_min-image_center
         vect_normalized = vect*self.calavg
         print(vect, vect_normalized)
-        sendToPoints(vect_normalized[1], vect_normalized[0])
-            
-
-
+        sendToPoints(vect_normalized[0], -1*vect_normalized[1])
 
     def toggle_mode(self):
         mode = ctk.get_appearance_mode()
