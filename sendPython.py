@@ -6,7 +6,7 @@ PORT = '/dev/tty.usbmodem3446395A32311'  # <-- Replace with your port
 BAUD = 115200                      # Or 250000 depending on your firmware
 TIMEOUT = 1
 
-def sendToPoints(x_center, y_center):
+def sendToPoints(x_center = 0, y_center = 0, points = [], z_dist = 0, homing = False, extrusion = False):
     # === CONNECT TO BOARD ===
     print("Connecting to {}...".format(PORT))
     ser = serial.Serial(PORT, BAUD, timeout=TIMEOUT)
@@ -36,17 +36,47 @@ def sendToPoints(x_center, y_center):
     # send_gcode("G1 C{} F100".format(clamp_distance))   # Move X to the origin's point
     # send_gcode("G92 C0")   # Home 
 
-    X_origin = x_center
-    Y_origin = y_center
+    if(extrusion):
+        send_gcode("G91")
+        send_gcode("G1 B0.33 F200")
+        time.sleep(1)
+        send_gcode("G1 B-0.2 F300")
+        send_gcode("G1 Z0.2 F100")
 
-    send_gcode("G91")           # Relative positioning
-    send_gcode("G1 X{} F200".format(X_origin))   # Move X to the origin's point
-    send_gcode("G1 Y{} F200".format(Y_origin))  #Move Y to the origin's point
+        for i in range (10):
+            send_gcode("G3 X0 Y0 I{} J0 F200".format(0.2+i*0.03))
+            send_gcode("G1 Z0.15 F100")
+        time.sleep(2)
+        send_gcode("G1 Z3 F100")
+        return None
 
-    send_gcode("G92 X0 Y0") #home x and y coordinates at the new origin
+    if(homing):
+        send_gcode("G91")           # Relative positioning
+    else:
+        send_gcode("G92 X0 Y0")
+        send_gcode("G90")
 
+    if(x_center != 0 and y_center != 0):
+        send_gcode("G1 X{} F200".format(x_center))   # Move X to the origin's point
+        send_gcode("G1 Y{} F200".format(y_center))
+
+    for coord in points:
+        send_gcode("G1 X{} F200".format(coord[0]))
+        send_gcode("G1 Y{} F200".format(coord[1]))
+    # X_origin = x_center
+    # Y_origin = y_center
+    # Z_dist = z_dist
+
+    # send_gcode("G1 X{} F200".format(X_origin))   # Move X to the origin's point
+    # send_gcode("G1 Y{} F200".format(Y_origin))  #Move Y to the origin's point
+    # send_gcode("G1 Z{} F200".format(Z_dist)) #Move to specified Z-distance
+    if (homing): #only home if specifically specified
+        send_gcode("G92 X0 Y0") #home x and y coordinates at the new origin
     # === CLEAN UP ===
     ser.close()
     print("Done.")
 
-#sendToPoints(-15, -15)
+# def extrude():
+#     print("Work in Progress!")
+
+sendToPoints(extrusion=True)

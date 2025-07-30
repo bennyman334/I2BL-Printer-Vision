@@ -9,6 +9,7 @@ import livefeed_measurements
 import numpy as np
 from sendPython import sendToPoints
 import serial.tools.list_ports
+import time
 
 def list_serial_ports():
     """Returns a list of available serial port device names."""
@@ -100,13 +101,13 @@ class DashboardApp(ctk.CTk):
             command=self.find_top_right,
         ).pack(fill="x", padx=20, pady=(0, 12))
 
-        # ctk.CTkButton(
-        #     self.sidebar,
-        #     text="Move to Points",
-        #     height=40,
-        #     fg_color="#23272e",
-        #     command=self.find_top_right,
-        # ).pack(fill="x", padx=20, pady=(0, 12))
+        ctk.CTkButton(
+            self.sidebar,
+            text="Extrude All Points",
+            height=40,
+            fg_color="#23272e",
+            command=self.extrude_points,
+        ).pack(fill="x", padx=20, pady=(0, 12))
 
         # Main camera area (fills almost all the right side)
         self.camera_panel = ctk.CTkFrame(
@@ -158,7 +159,7 @@ class DashboardApp(ctk.CTk):
             else:
                 self.show_toast("Error running target.py!", duration=3000)
                 print("Error running target.py:", result.stderr)
-                self.centers = []
+                self.centers = [                                                                                                                                                                                                                                                                                                                                                                                                                        ]
         # Run in a thread to avoid freezing GUI
         threading.Thread(target=calibration_task, daemon=True).start()
 
@@ -236,12 +237,34 @@ class DashboardApp(ctk.CTk):
             if i[1]<minimum[1]: 
                 minimum = i 
         
-        num_min = np.array(minimum)
+        num_min = np.array(minimum, dtype=float)
         image_center = np.array(self.imageCenter)
         vect = num_min-image_center
         vect_normalized = vect*self.calavg
+
+        self.displacements = []
+        for holes in self.centers:
+            coord = np.array(holes, dtype=float)
+            dist = num_min - coord
+            dist*=self.calavg
+            dist[0] *= -1
+            #dist[1]*= -1
+
+            self.displacements.append(dist)
+            #print(dist)
+
+
+        print(self.displacements)
         print(vect, vect_normalized)
-        sendToPoints(vect_normalized[0], -1*vect_normalized[1])
+        sendToPoints(x_center = vect_normalized[0], y_center = -1*vect_normalized[1], homing=True)
+
+    def extrude_points(self):
+        #adjust Z-axis HERE FIRST!!! <------------------
+        print("hello!!!")
+        print(len(self.displacements))
+
+        toPoints = self.displacements
+        sendToPoints(points = toPoints)
 
     def toggle_mode(self):
         mode = ctk.get_appearance_mode()
