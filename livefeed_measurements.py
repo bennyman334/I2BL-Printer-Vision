@@ -44,8 +44,8 @@ def detect_green_region(frame: np.ndarray, real_length: float, real_width: float
     return None
 
 def main():
-    r_length = 25.6
-    r_width = 6.96
+    r_length = 30
+    r_width = 10
     image_path = "frames/screenshot_3_seconds.png"
     image = cv2.imread(image_path)
 
