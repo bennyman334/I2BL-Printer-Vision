@@ -61,8 +61,13 @@ def sendToPoints(x_center = 0, y_center = 0, points = [], z_dist = 0, homing = F
         send_gcode("G1 Y{} F200".format(y_center))
 
     for coord in points:
-        send_gcode("G1 X{} F200".format(coord[0]))
-        send_gcode("G1 Y{} F200".format(coord[1]))
+        if (len(coord)==3):
+            send_gcode("G1 X{} F200".format(coord[0]))
+            send_gcode("G1 Y{} F200".format(coord[1]))
+            send_gcode("G1 Z{} F200".format(coord[2]))
+        else:
+            send_gcode("G1 X{} F200".format(coord[0]))
+            send_gcode("G1 Y{} F200".format(coord[1]))
     # X_origin = x_center
     # Y_origin = y_center
     # Z_dist = z_dist

@@ -19,8 +19,8 @@ def list_serial_ports():
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-venv_python = "/Users/benjaminli/Documents/Research Documents/I2BL Lab/I2BL-Printer-Vision/rfenv/bin/python"
-target_script = "/Users/benjaminli/Documents/Research Documents/I2BL Lab/I2BL-Printer-Vision/locateCircles.py"
+venv_python = "rfenv/bin/python"
+target_script = "locateCircles.py"
 
 
 class DashboardApp(ctk.CTk):
@@ -34,10 +34,12 @@ class DashboardApp(ctk.CTk):
         self.centers = []
         self.calavg = 0.0
         self.imageCenter = (0,0)
+        self.pause_camera = False  # Prevent camera lag during dropdown interaction
 
         self.displacements = []
 
         # Sidebar
+                # Sidebar
         self.sidebar = ctk.CTkFrame(self, width=220, corner_radius=10)
         self.sidebar.pack(side="left", fill="y", padx=10, pady=10)
 
@@ -47,67 +49,149 @@ class DashboardApp(ctk.CTk):
             font=ctk.CTkFont(size=20, weight="bold")
         ).pack(pady=(20, 40))
 
-        self.port_var = ctk.StringVar()
-        self.port_dropdown = ctk.CTkComboBox(
-            self.sidebar,
-            variable=self.port_var,
-            values=list_serial_ports(),
-            width=180,
-            state="readonly",
-            font=ctk.CTkFont(size=14),
-        )
-        self.port_dropdown.pack(pady=(0, 18), padx=20)
-        self.refresh_ports_button = ctk.CTkButton(
-            self.sidebar,
-            text="🔄 Refresh Ports",
-            height=28,
-            fg_color="#23272e",
-            font=ctk.CTkFont(size=14),
-            command=self.refresh_ports
-        )
-        self.refresh_ports_button.pack(fill="x", padx=20, pady=(0, 16))
+        # Port Dropdown + Refresh
+        # self.port_var = ctk.StringVar()
+        # self.port_dropdown = ctk.CTkComboBox(
+        #     self.sidebar,
+        #     variable=self.port_var,
+        #     values=list_serial_ports(),
+        #     width=180,
+        #     state="readonly",
+        #     font=ctk.CTkFont(size=14),
+        # )
+        # self.port_dropdown.pack(pady=(0, 18), padx=20)
 
+        # self.refresh_ports_button = ctk.CTkButton(
+        #     self.sidebar,
+        #     text="🔄 Refresh Ports",
+        #     height=28,
+        #     fg_color="#23272e",
+        #     font=ctk.CTkFont(size=14),
+        #     command=self.refresh_ports
+        # )
+        # self.refresh_ports_button.pack(fill="x", padx=20, pady=(0, 16))
 
+        # === First Control Group (Snapshot, Calibrate, Run Conversion) ===
+        self.control_group_1 = ctk.CTkFrame(self.sidebar, fg_color="#1e1e1e")
+        self.control_group_1.pack(fill="x", padx=14, pady=(0, 20))
 
         ctk.CTkButton(
-            self.sidebar,
+            self.control_group_1,
             text="Snapshot",
             height=40,
             fg_color="#23272e",
             command=self.run_screenshot,
-        ).pack(fill="x", padx=20, pady=(0, 12))
-        
+        ).pack(fill="x", padx=10, pady=(10, 10))
+
         ctk.CTkButton(
-            self.sidebar,
+            self.control_group_1,
             text="Calibrate",
             height=40,
             fg_color="#23272e",
             command=self.run_target,
-        ).pack(fill="x", padx=20, pady=(0, 12))
+        ).pack(fill="x", padx=10, pady=(0, 10))
 
         ctk.CTkButton(
-            self.sidebar,
+            self.control_group_1,
             text="Run Conversion",
             height=40,
             fg_color="#23272e",
             command=self.run_conversion,
-        ).pack(fill="x", padx=20, pady=(0, 12))
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+        # === Second Control Group (Home, Extrude) ===
+        self.control_group_2 = ctk.CTkFrame(self.sidebar, fg_color="#1e1e1e")
+        self.control_group_2.pack(fill="x", padx=14, pady=(0, 20))
 
         ctk.CTkButton(
-            self.sidebar,
+            self.control_group_2,
             text="Home (Top Right)",
             height=40,
             fg_color="#23272e",
             command=self.find_top_right,
-        ).pack(fill="x", padx=20, pady=(0, 12))
+        ).pack(fill="x", padx=10, pady=(10, 10))
 
         ctk.CTkButton(
-            self.sidebar,
+            self.control_group_2,
             text="Extrude All Points",
             height=40,
             fg_color="#23272e",
             command=self.extrude_points,
-        ).pack(fill="x", padx=20, pady=(0, 12))
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+        # === XYZ Controls ===
+        self.xyz_controls = ctk.CTkFrame(self.sidebar, fg_color="#1e1e1e")
+        self.xyz_controls.pack(fill="x", padx=14, pady=(0, 10))
+
+        # XY movement buttons
+        xy_grid = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        xy_grid.pack(pady=8)
+
+        self.z_step_var = ctk.StringVar(value="1")
+
+        # ↑
+        ctk.CTkButton(xy_grid, text="↑", width=50, height=30,command= lambda: 
+                      sendToPoints(0, 0, points=[[0, -float(self.z_step_var.get())]],homing=True)
+                      ).grid(row=0, column=1, pady=2)
+        # ← ↓ →
+        ctk.CTkButton(xy_grid, text="←", width=50, height=30,command=lambda: 
+                      sendToPoints(0, 0, points=[[float(self.z_step_var.get()),0]],homing=True)).grid(row=1, column=0, padx=2)
+        
+        ctk.CTkButton(xy_grid, text="→", width=50, height=30,command=lambda: 
+                      sendToPoints(0, 0, points=[[-float(self.z_step_var.get()),0]],homing=True)).grid(row=1, column=2, padx=2)
+        # ↓
+        ctk.CTkButton(xy_grid, text="↓", width=50, height=30,command=lambda: 
+                      sendToPoints(0, 0, points=[[0, float(self.z_step_var.get())]],homing=True)).grid(row=2, column=1, pady=2)
+
+        # Z-axis label with dropdown
+        # z_frame = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        # z_frame.pack(fill="x", padx=10, pady=(8, 4))
+
+        # ctk.CTkLabel(z_frame, text="Z Axis").pack(side="left")
+
+        # # Granularity dropdown in top-right of box
+        # self.z_step_var = ctk.StringVar(value="1")
+        # z_dropdown = ctk.CTkComboBox(
+        #     z_frame,
+        #     values=["0.1", "1", "10"],
+        #     variable=self.z_step_var,
+        #     width=60,
+        #     height=24,
+        #     font=ctk.CTkFont(size=12),
+        #     state="readonly"
+        # )
+        # z_dropdown.pack(side="right")
+
+        z_frame = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        z_frame.pack(fill="x", padx=10, pady=(8, 4))
+
+        ctk.CTkLabel(z_frame, text="Z Axis").pack(side="left")
+
+        z_entry = ctk.CTkEntry(
+            z_frame,
+            textvariable=self.z_step_var,
+            width=60,
+            height=24,
+            font=ctk.CTkFont(size=12),
+            justify="right"
+        )
+        z_entry.pack(side="right")
+
+
+        # Pause camera feed while dropdown is open
+        # z_dropdown.bind("<FocusIn>", lambda e: self.set_camera_pause(True))
+        # z_dropdown.bind("<FocusOut>", lambda e: self.set_camera_pause(False))
+
+
+        # Z up/down buttons
+        z_buttons = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        z_buttons.pack(pady=(4, 10))
+
+        ctk.CTkButton(z_buttons, text="Z ↑", width=80, height=30, command= lambda: 
+                      sendToPoints(0, 0, points=[[0, 0, int(self.z_step_var.get())]],homing=True)).pack(pady=4)
+        ctk.CTkButton(z_buttons, text="Z ↓", width=80, height=30, command = lambda: 
+                      sendToPoints(0, 0, points=[[0, 0, -int(self.z_step_var.get())]],homing=True)).pack()
+
 
         # Main camera area (fills almost all the right side)
         self.camera_panel = ctk.CTkFrame(
@@ -137,7 +221,7 @@ class DashboardApp(ctk.CTk):
         else:
             self.port_var.set('')
 
-    
+
     def run_target(self):
         self.show_toast("Calibrating ...")
         def calibration_task():
@@ -172,6 +256,8 @@ class DashboardApp(ctk.CTk):
         self.calavg = livefeed_measurements.main()  # Just call directly, no thread
         print("SELF", self.calavg)
 
+    
+
 
     # def run_conversion(self):
     #     ret, frame = self.cap.read()
@@ -200,32 +286,32 @@ class DashboardApp(ctk.CTk):
         toast.lift()
         self.after(duration, toast.destroy)
 
+    def set_camera_pause(self, state: bool):
+        self.pause_camera = state
+
 
     def update_camera_feed(self):
-        ret, frame = self.cap.read()
-        if ret:
-            # Draw red dots for each center (if any)
-            for center in self.centers:
-                try:
-                    x, y = int(center[0]), int(center[1])
-                    cv2.circle(frame, (x, y), radius=1, color=(0, 0, 255), thickness=3)
-                except Exception as e:
-                    print("Error drawing center:", center, e)
+        if not self.pause_camera:
+            ret, frame = self.cap.read()
+            if ret:
+                for center in self.centers:
+                    try:
+                        x, y = int(center[0]), int(center[1])
+                        cv2.circle(frame, (x, y), radius=1, color=(0, 0, 255), thickness=3)
+                    except Exception as e:
+                        print("Error drawing center:", center, e)
 
-            # Draw a blue dot in the center of the frame
-            h, w = frame.shape[:2]
-            center_x, center_y = w // 2, h // 2
-            self.imageCenter=(center_x,center_y)
-            cv2.circle(frame, (center_x, center_y), radius=1, color=(255, 0, 0), thickness=3)  # Blue dot
+                h, w = frame.shape[:2]
+                center_x, center_y = w // 2, h // 2
+                self.imageCenter = (center_x, center_y)
+                cv2.circle(frame, (center_x, center_y), radius=1, color=(255, 0, 0), thickness=3)
 
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            img = Image.fromarray(frame)
-            imgtk = ImageTk.PhotoImage(image=img)
-            self.img_label.configure(image=imgtk, text="")  # Update the image
-            self.img_label.image = imgtk        
-            
-            
-                       # Store reference!
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                img = Image.fromarray(frame)
+                imgtk = ImageTk.PhotoImage(image=img)
+                self.img_label.configure(image=imgtk, text="")
+                self.img_label.image = imgtk
+
         self.after(30, self.update_camera_feed)
 
 
