@@ -113,6 +113,16 @@ class DashboardApp(ctk.CTk):
 
         ctk.CTkButton(
             self.control_group_2,
+            text="Home (Center)",
+            height=40,
+            fg_color="#23272e",
+            command=self.find_top_right,
+        ).pack(fill="x", padx=10, pady=(10, 10))
+
+
+
+        ctk.CTkButton(
+            self.control_group_2,
             text="Extrude All Points",
             height=40,
             fg_color="#23272e",
@@ -188,9 +198,9 @@ class DashboardApp(ctk.CTk):
         z_buttons.pack(pady=(4, 10))
 
         ctk.CTkButton(z_buttons, text="Z ↑", width=80, height=30, command= lambda: 
-                      sendToPoints(0, 0, points=[[0, 0, int(self.z_step_var.get())]],homing=True)).pack(pady=4)
+                      sendToPoints(0, 0, points=[[0, 0, float(self.z_step_var.get())]],homing=True)).pack(pady=4)
         ctk.CTkButton(z_buttons, text="Z ↓", width=80, height=30, command = lambda: 
-                      sendToPoints(0, 0, points=[[0, 0, -int(self.z_step_var.get())]],homing=True)).pack()
+                      sendToPoints(0, 0, points=[[0, 0, -float(self.z_step_var.get())]],homing=True)).pack()
 
 
         # Main camera area (fills almost all the right side)
@@ -212,6 +222,7 @@ class DashboardApp(ctk.CTk):
         self.cap = cv2.VideoCapture(0)
         self.update_camera_feed()
 
+        
     def refresh_ports(self):
         ports = list_serial_ports()
         self.port_dropdown.configure(values=ports)
@@ -314,6 +325,42 @@ class DashboardApp(ctk.CTk):
 
         self.after(30, self.update_camera_feed)
 
+    # def pixel_to_mm(self, pt):
+    #     """Convert a single pixel (x, y) point to mm using homography H."""
+    #     px = np.array([pt[0], pt[1], 1.0])
+    #     mm = self.H @ px
+    #     mm /= mm[2]
+    #     return mm[:2]
+
+    # def find_top_right(self):
+    #     # Step 1: Find the top 3 points with the largest X (right-most)
+    #     top_three = sorted(self.centers, key=lambda c: c[0], reverse=True)[:3]
+        
+    #     # Step 2: From those, pick the one with smallest Y (top-most)
+    #     top_right_px = min(top_three, key=lambda c: c[1])
+
+    #     # Step 3: Convert image center and top-right to mm using homography
+    #     top_right_mm = self.pixel_to_mm(top_right_px)
+    #     image_center_mm = self.pixel_to_mm(self.imageCenter)
+
+    #     # Step 4: Compute mm vector from center to top-right
+    #     vect_mm = top_right_mm - image_center_mm
+
+    #     # Step 5: Compute displacements from top-right to all other centers (in mm)
+    #     self.displacements = []
+    #     for hole in self.centers:
+    #         hole_mm = self.pixel_to_mm(hole)
+    #         dist = top_right_mm - hole_mm
+    #         dist[0] *= -1  # reverse X for your printer coordinate system if needed
+    #         self.displacements.append(dist)
+
+    #     print("Displacement vectors (mm):", self.displacements)
+    #     print("Vector to top-right (mm):", vect_mm)
+
+    #     sendToPoints(x_center=vect_mm[0], y_center=-vect_mm[1], homing=True)
+
+
+
 
     def find_top_right(self):
         # Sort centers by x value in descending order and take the top 3
@@ -343,6 +390,39 @@ class DashboardApp(ctk.CTk):
         print(self.displacements)
         print(vect, vect_normalized)
         sendToPoints(x_center = vect_normalized[0], y_center = -1*vect_normalized[1], homing=True)
+
+
+    def find_center(self):
+        try:
+            print("[INFO] Running find_center_point...")
+            print(f"[INFO] Detected {len(self.centers)} center points: {self.centers}")
+
+            image_center = np.array(self.imageCenter, dtype=float)
+
+            # Step 1: Find the point closest to the image center
+            closest = min(self.centers, key=lambda pt: np.linalg.norm(np.array(pt, dtype=float) - image_center))
+            closest_np = np.array(closest, dtype=float)
+            print(f"[DEBUG] Closest point to image center: {closest}")
+
+            # Step 2: Vector from image center to this point
+            vect = closest_np - image_center
+            vect_normalized = vect * self.calavg  # use homography here if available
+
+            # Step 3: Displacement vectors from center point to all others
+            self.displacements = []
+            for i, pt in enumerate(self.centers):
+                pt_np = np.array(pt, dtype=float)
+                dist = closest_np - pt_np
+                dist *= self.calavg
+                dist[0] *= -1  # flip X if needed
+                self.displacements.append(dist)
+                print(f"[DEBUG] Displacement from center to point {i}: {dist}")
+
+            print("[RESULT] Center displacement vector (mm):", vect_normalized)
+            sendToPoints(x_center=vect_normalized[0], y_center=-vect_normalized[1], homing=True)
+
+        except Exception as e:
+            print(f"[ERROR] find_center_point failed: {e}")
 
     def extrude_points(self):
         #adjust Z-axis HERE FIRST!!! <------------------

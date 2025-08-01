@@ -5,8 +5,8 @@ def detect_green_region(frame: np.ndarray, real_length: float, real_width: float
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
     # Define green color range (tweak as needed for lighting conditions)
-    lower_green = np.array([40, 40, 40])
-    upper_green = np.array([90, 255, 255])
+    lower_green = np.array([40, 80, 40])
+    upper_green = np.array([70, 255, 255])
 
     mask = cv2.inRange(hsv, lower_green, upper_green)
 
