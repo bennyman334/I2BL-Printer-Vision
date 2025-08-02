@@ -37,6 +37,7 @@ class DashboardApp(ctk.CTk):
         self.pause_camera = False  # Prevent camera lag during dropdown interaction
 
         self.displacements = []
+        self.syringeOffsets = np.array([-0.6, -30.8, -60]) #displacements to get to the top right corner
 
         # Sidebar
                 # Sidebar
@@ -119,14 +120,20 @@ class DashboardApp(ctk.CTk):
             command=self.find_top_right,
         ).pack(fill="x", padx=10, pady=(10, 10))
 
-
-
         ctk.CTkButton(
             self.control_group_2,
             text="Extrude All Points",
             height=40,
             fg_color="#23272e",
             command=self.extrude_points,
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Lower Syringe",
+            height=40,
+            fg_color="#23272e",
+            command=self.moveSyringe,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
         # === XYZ Controls ===
@@ -373,6 +380,7 @@ class DashboardApp(ctk.CTk):
         num_min = np.array(minimum, dtype=float)
         image_center = np.array(self.imageCenter)
         vect = num_min-image_center
+        print("Vector", vect)
         vect_normalized = vect*self.calavg
 
         self.displacements = []
@@ -431,6 +439,11 @@ class DashboardApp(ctk.CTk):
 
         toPoints = self.displacements
         sendToPoints(points = toPoints)
+
+    def moveSyringe(self):
+        sendToPoints(z_homing=True)
+        print(self.syringeOffsets[0], self.syringeOffsets[1], self.syringeOffsets[2])
+        sendToPoints(x_center = self.syringeOffsets[0], y_center = self.syringeOffsets[1], z_dist = self.syringeOffsets[2])
 
     def toggle_mode(self):
         mode = ctk.get_appearance_mode()
