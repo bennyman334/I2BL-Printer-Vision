@@ -15,6 +15,27 @@ def list_serial_ports():
     """Returns a list of available serial port device names."""
     return [port.device for port in serial.tools.list_ports.comports()]
 
+PORT = '/dev/tty.usbmodem3446395A32311'  # <-- Replace with your port
+BAUD = 115200                      # Or 250000 depending on your firmware
+TIMEOUT = 1
+
+print("Connecting to {}...".format(PORT))
+ser = serial.Serial(PORT, BAUD, timeout=TIMEOUT)
+time.sleep(2)  # Wait for board to auto-reset
+
+# === FLUSH INITIAL MESSAGES ===
+ser.reset_input_buffer()
+
+def send_gcode(cmd):
+    print(">> {}".format(cmd))
+    ser.write((cmd + '\n').encode())
+
+    while True:
+        line = ser.readline().decode('utf-8').strip()
+        if line:
+            print("<< {}".format(line))
+        if 'ok' in line.lower():
+            break
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
@@ -32,12 +53,14 @@ class DashboardApp(ctk.CTk):
         self.resizable(True, True)
 
         self.centers = []
+        self.extrusion_num = 0
         self.calavg = 0.0
-        self.imageCenter = (0,0)
+        self.imageCenter = (976,503)
         self.pause_camera = False  # Prevent camera lag during dropdown interaction
 
         self.displacements = []
-        self.syringeOffsets = np.array([-0.6, -30.8, -60]) #displacements to get to the top right corner
+        self.syringeOffsets = np.array([-3.6, -25.7, -60]) #x, y, z offsets to bring syringe to top right hole
+        #np.array([-0.6, -30.7, -61]) #displacements to get to the top right corner
 
         # Sidebar
                 # Sidebar
@@ -120,12 +143,28 @@ class DashboardApp(ctk.CTk):
             command=self.find_top_right,
         ).pack(fill="x", padx=10, pady=(10, 10))
 
+        # ctk.CTkButton(
+        #     self.control_group_2,
+        #     text="Extrude All Points",
+        #     height=40,
+        #     fg_color="#23272e",
+        #     command=self.extrude_points,
+        # ).pack(fill="x", padx=10, pady=(0, 10))
+
         ctk.CTkButton(
             self.control_group_2,
-            text="Extrude All Points",
+            text="Next Extrusion",
             height=40,
             fg_color="#23272e",
-            command=self.extrude_points,
+            command=self.next_extrusion,
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Home Z-Axis",
+            height=40,
+            fg_color="#23272e",
+            command= self.home_z,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
         ctk.CTkButton(
@@ -147,18 +186,21 @@ class DashboardApp(ctk.CTk):
         self.z_step_var = ctk.StringVar(value="1")
 
         # ↑
-        ctk.CTkButton(xy_grid, text="↑", width=50, height=30,command= lambda: 
-                      sendToPoints(0, 0, points=[[0, -float(self.z_step_var.get())]],homing=True)
+        ctk.CTkButton(xy_grid, text="↑", width=50, height=30,command= lambda: self.GUI_move("Y", -float(self.z_step_var.get()))
+                      #sendToPoints(0, 0, points=[[0, -float(self.z_step_var.get())]],homing=True)
                       ).grid(row=0, column=1, pady=2)
         # ← ↓ →
-        ctk.CTkButton(xy_grid, text="←", width=50, height=30,command=lambda: 
-                      sendToPoints(0, 0, points=[[float(self.z_step_var.get()),0]],homing=True)).grid(row=1, column=0, padx=2)
+        ctk.CTkButton(xy_grid, text="←", width=50, height=30,command=lambda: self.GUI_move("X", float(self.z_step_var.get()))
+                      #sendToPoints(0, 0, points=[[float(self.z_step_var.get()),0]],homing=True))
+                      ).grid(row=1, column=0, padx=2)
         
-        ctk.CTkButton(xy_grid, text="→", width=50, height=30,command=lambda: 
-                      sendToPoints(0, 0, points=[[-float(self.z_step_var.get()),0]],homing=True)).grid(row=1, column=2, padx=2)
+        ctk.CTkButton(xy_grid, text="→", width=50, height=30,command=lambda: self.GUI_move("X", -float(self.z_step_var.get()))
+                      #sendToPoints(0, 0, points=[[-float(self.z_step_var.get()),0]],homing=True)).grid(row=1, column=2, padx=2)
+                      ).grid(row=1, column=2, padx=2)
         # ↓
-        ctk.CTkButton(xy_grid, text="↓", width=50, height=30,command=lambda: 
-                      sendToPoints(0, 0, points=[[0, float(self.z_step_var.get())]],homing=True)).grid(row=2, column=1, pady=2)
+        ctk.CTkButton(xy_grid, text="↓", width=50, height=30,command=lambda: self.GUI_move("Y", float(self.z_step_var.get()))
+                      #sendToPoints(0, 0, points=[[0, float(self.z_step_var.get())]],homing=True)).grid(row=2, column=1, pady=2)
+                      ).grid(row=2, column=1, pady=2)
 
         # Z-axis label with dropdown
         # z_frame = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
@@ -203,11 +245,21 @@ class DashboardApp(ctk.CTk):
         # Z up/down buttons
         z_buttons = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
         z_buttons.pack(pady=(4, 10))
+        ctk.CTkButton(
+            z_buttons,
+            text="Z ↑",
+            width=80,
+            height=30,
+            command=lambda: self.GUI_move("Z", float(self.z_step_var.get()))
+        ).pack(pady=4)
 
-        ctk.CTkButton(z_buttons, text="Z ↑", width=80, height=30, command= lambda: 
-                      sendToPoints(0, 0, points=[[0, 0, float(self.z_step_var.get())]],homing=True)).pack(pady=4)
-        ctk.CTkButton(z_buttons, text="Z ↓", width=80, height=30, command = lambda: 
-                      sendToPoints(0, 0, points=[[0, 0, -float(self.z_step_var.get())]],homing=True)).pack()
+        ctk.CTkButton(
+            z_buttons,
+            text="Z ↓",
+            width=80,
+            height=30,
+            command=lambda: self.GUI_move("Z", -float(self.z_step_var.get()))
+        ).pack()
 
 
         # Main camera area (fills almost all the right side)
@@ -238,6 +290,13 @@ class DashboardApp(ctk.CTk):
             self.port_var.set(ports[0])
         else:
             self.port_var.set('')
+    
+    def home_z(self):
+        send_gcode("G28 Z")
+    
+    def GUI_move(self, direction, amount):
+        send_gcode("G91")
+        send_gcode(f"G1 {direction}{amount} F200")
 
 
     def run_target(self):
@@ -321,8 +380,8 @@ class DashboardApp(ctk.CTk):
 
                 h, w = frame.shape[:2]
                 center_x, center_y = w // 2, h // 2
-                self.imageCenter = (center_x, center_y)
-                cv2.circle(frame, (center_x, center_y), radius=1, color=(255, 0, 0), thickness=3)
+                #self.imageCenter = (center_x, center_y)
+                cv2.circle(frame, (self.imageCenter[0], self.imageCenter[1]), radius=1, color=(255, 0, 0), thickness=3)
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(frame)
@@ -384,6 +443,7 @@ class DashboardApp(ctk.CTk):
         vect_normalized = vect*self.calavg
 
         self.displacements = []
+        self.extrusion_num = 0
         for holes in self.centers:
             coord = np.array(holes, dtype=float)
             dist = num_min - coord
@@ -394,10 +454,16 @@ class DashboardApp(ctk.CTk):
             self.displacements.append(dist)
             #print(dist)
 
-
         print(self.displacements)
         print(vect, vect_normalized)
-        sendToPoints(x_center = vect_normalized[0], y_center = -1*vect_normalized[1], homing=True)
+        x_center = vect_normalized[0]
+        y_center = -1*vect_normalized[1]
+        send_gcode("G91")
+        send_gcode(f"G1 X{x_center} F200")
+        send_gcode(f"G1 Y{y_center} F200")
+        send_gcode("G92 X0 Y0") #home
+
+        #sendToPoints(x_center = vect_normalized[0], y_center = -1*vect_normalized[1], homing=True)
 
 
     def find_center(self):
@@ -439,6 +505,24 @@ class DashboardApp(ctk.CTk):
 
         toPoints = self.displacements
         sendToPoints(points = toPoints)
+    
+    def next_extrusion(self):
+        #adjust Z-axis HERE FIRST!!! <------------------
+        if(self.extrusion_num == 0):
+            send_gcode("G92 X0 Y0")
+            send_gcode("G90")
+            print(self.displacements)
+        if(self.extrusion_num < len(self.displacements)):
+            send_gcode("G90")
+            print("Extrusion Number:", self.extrusion_num)
+            coord = self.displacements[self.extrusion_num]
+            x_move = coord[0]
+            y_move = coord[1]
+            send_gcode(f"G1 X{x_move} F100")
+            send_gcode(f"G1 Y{y_move} F100")
+            self.extrusion_num += 1
+        else:
+            print("Already Extruded All Points!")
 
     def moveSyringe(self):
         sendToPoints(z_homing=True)

@@ -41,13 +41,32 @@ def sendToPoints(x_center = 0, y_center = 0, points = [], z_dist = 0, z_homing =
         send_gcode("G1 B0.33 F200")
         time.sleep(1)
         send_gcode("G1 B-0.2 F300")
-        send_gcode("G1 Z0.2 F100")
+        #send_gcode("G1 Z0.2 F100")
 
-        for i in range (10):
-            send_gcode("G3 X0 Y0 I{} J0 F200".format(0.2+i*0.03))
-            send_gcode("G1 Z0.15 F100")
-        time.sleep(2)
+        send_gcode("G92 X0 Y0 Z0")
+        send_gcode("G90")
+
+        R = 0.1
+        iterations = 15
+        for i in range (20):
+            if(i <= iterations):
+                R += 0.030
+                # move out to circle perimeter at feedrate
+                send_gcode(f"G1 X{R} Y0 F200")
+                # full CCW circle around origin, returning to (R,0)
+                send_gcode(f"G3 X{R} Y0 I{-R} J0 F200")
+            # return to center at feedrate
+            else:
+                send_gcode(f"G3 X{R} Y0 I{-R} J0 F200")
+                H = 0.1*(i-iterations)
+                send_gcode(f"G1 Z{H} F200")
+
+        #send_gcode("G1 X0 Y0")
+        #send_gcode("G1 Y0.7 F200")
+        #time.sleep(2)
         send_gcode("G1 Z3 F100")
+        send_gcode("G1 X0 Y0")
+        #send_gcode("G1 Y-0.7 F200")
         return None
 
     if(homing):

@@ -4,7 +4,7 @@ import glob
 
 # Settings
 chessboard_size = (4, 5)  # 6 inner corners per row/column
-square_size = 8.0         # millimeters
+square_size = 8.00         # millimeters
 
 # Prepare object points
 objp = np.zeros((chessboard_size[0]*chessboard_size[1],3), np.float32)
@@ -14,7 +14,7 @@ objp = objp * square_size
 objpoints = []
 imgpoints = []
 
-images = glob.glob('calibpics/*.jpg')  # Adjust path if needed
+images = glob.glob('charuco_imgs/*.jpg')  # Adjust path if needed
 
 for fname in images:
     img = cv2.imread(fname)
