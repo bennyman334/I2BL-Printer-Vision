@@ -35,7 +35,7 @@ class DashboardApp(ctk.CTk):
         self.calavg = 0.0
         self.imageCenter = (0,0)
         self.pause_camera = False  # Prevent camera lag during dropdown interaction
-
+        self.syringeOffsets = ([-3.6, -25.7, -60])
         self.displacements = []
 
         # Sidebar
@@ -128,6 +128,24 @@ class DashboardApp(ctk.CTk):
             fg_color="#23272e",
             command=self.extrude_points,
         ).pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Lower Syringe",
+            height=40,
+            fg_color="#23272e",
+            command=self.moveSyringe,
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Home Z",
+            height=40,
+            fg_color="#23272e",
+            command=self.HomeZ,
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+
 
         # === XYZ Controls ===
         self.xyz_controls = ctk.CTkFrame(self.sidebar, fg_color="#1e1e1e")
@@ -431,6 +449,15 @@ class DashboardApp(ctk.CTk):
 
         toPoints = self.displacements
         sendToPoints(points = toPoints)
+
+
+    def HomeZ(self):
+        sendToPoints(z_homing=True)
+
+    def moveSyringe(self): 
+        sendToPoints(x_center=-0.3, y_center=-24.8)
+        sendToPoints(z_dist=-61)
+
 
     def toggle_mode(self):
         mode = ctk.get_appearance_mode()

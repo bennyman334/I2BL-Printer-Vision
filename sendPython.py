@@ -6,7 +6,7 @@ PORT = '/dev/tty.usbmodem3446395A32311'  # <-- Replace with your port
 BAUD = 115200                      # Or 250000 depending on your firmware
 TIMEOUT = 1
 
-def sendToPoints(x_center = 0, y_center = 0, points = [], z_dist = 0, homing = False, extrusion = False):
+def sendToPoints(x_center = 0, y_center = 0, points = [], z_dist = 0, homing = False, extrusion = False, z_homing=False):
     # === CONNECT TO BOARD ===
     print("Connecting to {}...".format(PORT))
     ser = serial.Serial(PORT, BAUD, timeout=TIMEOUT)
@@ -56,9 +56,16 @@ def sendToPoints(x_center = 0, y_center = 0, points = [], z_dist = 0, homing = F
         send_gcode("G92 X0 Y0")
         send_gcode("G90")
 
+    if(z_homing):
+        send_gcode("G28 Z")
+
+
     if(x_center != 0 and y_center != 0):
         send_gcode("G1 X{} F200".format(x_center))   # Move X to the origin's point
         send_gcode("G1 Y{} F200".format(y_center))
+
+    if (z_dist !=0):
+        send_gcode("G1 Z{} F200".format(z_dist))
 
     for coord in points:
         if (len(coord)==3):

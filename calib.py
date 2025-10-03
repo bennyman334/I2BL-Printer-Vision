@@ -1,39 +1,62 @@
-import numpy as np
 import cv2
+import numpy as np
 import glob
 
-# Settings
-chessboard_size = (4, 5)  # 6 inner corners per row/column
-square_size = 8.0         # millimeters
+# -----------------------------
+# Charuco/AprilTag board setup
+# -----------------------------
+# Define the Charuco board (adjust these if you used a different size)
+squares_x = 6  # number of squares along X
+squares_y = 5  # number of squares along Y
+square_length = 0.008  # meters
+marker_length = 0.006  # meters
 
-# Prepare object points
-objp = np.zeros((chessboard_size[0]*chessboard_size[1],3), np.float32)
-objp[:,:2] = np.mgrid[0:chessboard_size[0],0:chessboard_size[1]].T.reshape(-1,2)
-objp = objp * square_size
+# Use 4x4_50 AprilTag dictionary (adjust based on your pattern)
+aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+board = cv2.aruco.CharucoBoard_create(
+    squares_x, squares_y, square_length, marker_length, aruco_dict
+)
 
-objpoints = []
-imgpoints = []
+# -----------------------------
+# Read calibration images
+# -----------------------------
+image_dir = "calibpics/*.jpg"  # Update to your folder path
+images = glob.glob(image_dir)
 
-images = glob.glob('calibpics/*.jpg')  # Adjust path if needed
+all_corners = []
+all_ids = []
+img_size = None
 
 for fname in images:
     img = cv2.imread(fname)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    ret, corners = cv2.findChessboardCorners(gray, chessboard_size, None)
-    if ret:
-        objpoints.append(objp)
-        imgpoints.append(corners)
-        # Optional: draw and display
-        cv2.drawChessboardCorners(img, chessboard_size, corners, ret)
-        cv2.imshow('img', img)
-        cv2.waitKey(100)
-cv2.destroyAllWindows()
+    img_size = gray.shape[::-1]
 
-# Calibrate
-ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-print("Camera matrix:\n", mtx)
-print("Distortion coefficients:\n", dist)
-print("Reprojection error:", ret)
+    corners, ids, _ = cv2.aruco.detectMarkers(gray, aruco_dict)
 
-# Save to file
-np.savez('calibration_data.npz', cameraMatrix=mtx, distCoeffs=dist)
+    if ids is not None and len(ids) > 4:
+        _, charuco_corners, charuco_ids = cv2.aruco.interpolateCornersCharuco(
+            corners, ids, gray, board
+        )
+        if charuco_corners is not None and len(charuco_corners) > 4:
+            all_corners.append(charuco_corners)
+            all_ids.append(charuco_ids)
+
+# -----------------------------
+# Calibrate camera
+# -----------------------------
+if len(all_corners) > 0:
+    ret, camera_matrix, dist_coeffs, rvecs, tvecs = cv2.aruco.calibrateCameraCharuco(
+        charucoCorners=all_corners,
+        charucoIds=all_ids,
+        board=board,
+        imageSize=img_size,
+        cameraMatrix=None,
+        distCoeffs=None
+    )
+
+    print("Camera matrix:\n", camera_matrix)
+    print(f"\nOptical center (cx, cy): ({camera_matrix[0,2]:.2f}, {camera_matrix[1,2]:.2f})")
+    print(f"Focal lengths (fx, fy): ({camera_matrix[0,0]:.2f}, {camera_matrix[1,1]:.2f})")
+else:
+    print("Not enough valid detections for calibration.")
