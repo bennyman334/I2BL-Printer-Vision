@@ -10,12 +10,14 @@ import numpy as np
 from sendPython import sendToPoints
 import serial.tools.list_ports
 import time
+import math
 
 def list_serial_ports():
     """Returns a list of available serial port device names."""
     return [port.device for port in serial.tools.list_ports.comports()]
 
-PORT = '/dev/tty.usbmodem3446395A32311'  # <-- Replace with your port
+#PORT = '/dev/tty.usbmodem3446395A32311'  # <-- Replace with your port
+PORT = '/dev/cu.usbmodem3446395A32311'  # <-- Replace with your port
 BAUD = 115200                      # Or 250000 depending on your firmware
 TIMEOUT = 1
 
@@ -54,13 +56,17 @@ class DashboardApp(ctk.CTk):
 
         self.centers = []
         self.extrusion_num = 0
-        self.calavg = 0.0
-        self.imageCenter = (976,503)
+        self.calavg = 0.0663
+        self.imageCenter = (960,540)
+        #self.imageCenter = (955,504)
         self.pause_camera = False  # Prevent camera lag during dropdown interaction
 
         self.displacements = []
-        self.syringeOffsets = np.array([-3.6, -25.7, -60]) #x, y, z offsets to bring syringe to top right hole
+        self.syringeOffsets = np.array([0.6, -24.3, -60])
+        #self.syringeOffsets = np.array([0.4, -24.5, -60])
+        #self.syringeOffsets = np.array([-3.6, -25.7, -60]) #x, y, z offsets to bring syringe to top right hole
         #np.array([-0.6, -30.7, -61]) #displacements to get to the top right corner
+        #24.5
 
         # Sidebar
                 # Sidebar
@@ -157,6 +163,14 @@ class DashboardApp(ctk.CTk):
             height=40,
             fg_color="#23272e",
             command=self.next_extrusion,
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Extrude All",
+            height=40,
+            fg_color="#23272e",
+            command=self.extrude_all,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
         ctk.CTkButton(
@@ -313,6 +327,17 @@ class DashboardApp(ctk.CTk):
                     self.centers = ast.literal_eval(result.stdout.strip())
                     print(self.centers)
                     self.show_toast("Calibration Complete!", duration=2000)
+
+                    def euclidean_distance(p1, p2):
+                        return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
+
+                    for i, coord in enumerate(self.centers):
+                        # Compute distances to all other coordinates
+                        distances = [euclidean_distance(coord, other) for j, other in enumerate(self.centers) if i != j]
+                        # Sort distances and take the two smallest
+                        min_two = sorted(distances)[:2]
+                        print(f"Coord {coord} -> two smallest distances: {min_two}")
+
                 except Exception as e:
                     self.show_toast("Error decoding output!", duration=3000)
                     print("Error decoding JSON from subprocess:", result.stdout, e)
@@ -330,7 +355,7 @@ class DashboardApp(ctk.CTk):
 
     def run_conversion(self):
         self.show_toast("Running Conversion")
-        self.calavg = livefeed_measurements.main()  # Just call directly, no thread
+        #self.calavg = livefeed_measurements.main()  # Just call directly, no thread
         print("SELF", self.calavg)
 
     
@@ -380,6 +405,7 @@ class DashboardApp(ctk.CTk):
 
                 h, w = frame.shape[:2]
                 center_x, center_y = w // 2, h // 2
+                self.imageCenter = (center_x, center_y)
                 #self.imageCenter = (center_x, center_y)
                 cv2.circle(frame, (self.imageCenter[0], self.imageCenter[1]), radius=1, color=(255, 0, 0), thickness=3)
 
@@ -524,10 +550,44 @@ class DashboardApp(ctk.CTk):
         else:
             print("Already Extruded All Points!")
 
+    def extrude_all(self):
+        #adjust Z-axis HERE FIRST!!! <------------------
+        send_gcode("G92 X0 Y0 Z0 B0")
+        send_gcode("G90")
+        count = 0
+        B_previous = 0
+        B_retract = -2
+        B_step = 3
+        for move_dist in self.displacements:
+            x_move = move_dist[0]
+            y_move = move_dist[1]
+            send_gcode(f"G1 X{x_move} F100")
+            send_gcode(f"G1 Y{y_move} F100")
+            time.sleep(1)
+            send_gcode(f"G1 Z-1 F100")
+            send_gcode(f"G1 B{B_step + B_previous} F50")
+            send_gcode(f"G1 B{B_step + B_previous + B_retract} F50")
+            B_previous = B_step + B_previous
+            time.sleep(5)
+            send_gcode(f"G1 Z0 F100")
+            print("Extruded Hole: ", count)
+        send_gcode("G1 X0 Y0 Z0")
+        print("Extruded All Holes: ", count)
+
+            
+
+
+
     def moveSyringe(self):
-        sendToPoints(z_homing=True)
+        send_gcode("G28 Z");
+        send_gcode("G91")
+
         print(self.syringeOffsets[0], self.syringeOffsets[1], self.syringeOffsets[2])
-        sendToPoints(x_center = self.syringeOffsets[0], y_center = self.syringeOffsets[1], z_dist = self.syringeOffsets[2])
+        send_gcode(f"G1 X{self.syringeOffsets[0]}")
+        send_gcode(f"G1 Y{self.syringeOffsets[1]}")
+        send_gcode(f"G1 Z{self.syringeOffsets[2]}")
+        #sendToPoints(z_homing=True)
+        #sendToPoints(x_center = self.syringeOffsets[0], y_center = self.syringeOffsets[1], z_dist = self.syringeOffsets[2])
 
     def toggle_mode(self):
         mode = ctk.get_appearance_mode()

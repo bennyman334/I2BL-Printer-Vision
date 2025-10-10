@@ -39,6 +39,9 @@ def detect_green_region(frame: np.ndarray, real_length: float, real_width: float
 
         if debug_draw is not None:
             cv2.drawContours(debug_draw, [box], 0, (0, 0, 255), 2)
+            cv2.imshow("Detected Rectangle", debug_draw)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
         print("Calibration average:", cal_avg)
         return cal_avg
     return None
@@ -123,11 +126,13 @@ def detect_green_circles(frame: np.ndarray, w_real: float, l_real: float, debug_
 def main():
     r_length = 10
     r_width = 5
-    image_path = "frames/screenshot_33_seconds.png"
+    image_path = "frames/screenshot_3_seconds.png"
     image = cv2.imread(image_path)
     show_image = image.copy()
 
-    result = detect_green_circles(image, w_real = 23, l_real = 20, debug_draw=show_image)
+    result = detect_green_region(image, real_length = 22, real_width = 10, debug_draw = show_image)
+
+    #result = detect_green_circles(image, w_real = 20, l_real = 23, debug_draw=show_image)
     print(result, "mm/pixel")
 
     return result
