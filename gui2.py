@@ -6,6 +6,7 @@ import camFeed
 import subprocess
 import ast
 import livefeed_measurements
+import calculate_extrusion
 import numpy as np
 from sendPython import sendToPoints
 import serial.tools.list_ports
@@ -17,7 +18,8 @@ def list_serial_ports():
     return [port.device for port in serial.tools.list_ports.comports()]
 
 #PORT = '/dev/tty.usbmodem3446395A32311'  # <-- Replace with your port
-PORT = '/dev/cu.usbmodem3446395A32311'  # <-- Replace with your port
+#PORT = '/dev/cu.usbmodem3446395A32311'  # <-- Replace with your port
+PORT = 'COM3'  # <-- Replace with your port
 BAUD = 115200                      # Or 250000 depending on your firmware
 TIMEOUT = 1
 
@@ -207,6 +209,8 @@ class DashboardApp(ctk.CTk):
         xy_grid.pack(pady=8)
 
         self.z_step_var = ctk.StringVar(value="1")
+        self.syringe_size_var = ctk.StringVar(value="25.6")  # Default syringe barrel diameter in mm
+        self.needle_size_var = ctk.StringVar(value="0.26")    # Default needle inner diameter in mm
 
         # ↑
         ctk.CTkButton(xy_grid, text="↑", width=50, height=30,command= lambda: self.GUI_move("Y", -float(self.z_step_var.get()))
@@ -301,6 +305,36 @@ class DashboardApp(ctk.CTk):
             height=30,
             command=lambda: self.GUI_move("B", float(self.z_step_var.get()))
         ).grid(row=1, column=1, padx=5, pady=4)
+
+        syringe_frame = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        syringe_frame.pack(fill="x", padx=10, pady=(0, 4))
+
+        ctk.CTkLabel(syringe_frame, text="Syringe Barrel Inner Diameter").pack(side="left")
+
+        syringe_entry = ctk.CTkEntry(
+            syringe_frame,
+            textvariable=self.syringe_size_var,
+            width=60,
+            height=24,
+            font=ctk.CTkFont(size=12),
+            justify="right"
+        )
+        syringe_entry.pack(side="right")
+
+        needle_frame = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        needle_frame.pack(fill="x", padx=10, pady=(0, 4))
+
+        ctk.CTkLabel(needle_frame, text="Needle Inner Diameter").pack(side="left")
+
+        needle_entry = ctk.CTkEntry(
+            needle_frame,
+            textvariable=self.needle_size_var,
+            width=60,
+            height=24,
+            font=ctk.CTkFont(size=12),
+            justify="right"
+        )
+        needle_entry.pack(side="right")
 
 
         # Main camera area (fills almost all the right side)
@@ -614,10 +648,7 @@ class DashboardApp(ctk.CTk):
         #adjust Z-axis HERE FIRST!!! <------------------
         send_gcode("G92 X0 Y0 Z0 B0")
         send_gcode("G90")
-        count = 0
-        B_previous = 4
-        B_step = 0.1
-        B_retract = -4
+        extruder = calculate_extrusion.ExtrusionCalculator(self.syringe_size_var.get(), self.needle_size_var.get(), 0.26, 1.5, 4)
         for move_dist in self.displacements:
             x_move = move_dist[0]
             y_move = move_dist[1]
@@ -626,13 +657,10 @@ class DashboardApp(ctk.CTk):
             time.sleep(1)
 
             #Extrude
-            send_gcode(f"G1 Z-1.5 F100")
-            send_gcode(f"G1 B{B_step + B_previous} F100")
-            time.sleep(2)
+            extruder.extrude_hole()
 
             # Retraction first, slow
-            send_gcode(f"G1 B{B_step + B_previous + B_retract} F300")
-            time.sleep(0.15)
+            extruder.retract()
 
             # Slow lift
             send_gcode(f"G1 Z0 F80")
