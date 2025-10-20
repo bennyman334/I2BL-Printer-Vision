@@ -115,7 +115,7 @@ class DashboardApp(ctk.CTk):
 
         ctk.CTkButton(
             self.control_group_1,
-            text="Calibrate",
+            text="Calibrate Holes",
             height=40,
             fg_color="#23272e",
             command=self.run_target,
@@ -134,20 +134,20 @@ class DashboardApp(ctk.CTk):
         self.control_group_2.pack(fill="x", padx=14, pady=(0, 20))
 
         ctk.CTkButton(
-            self.control_group_2,
+            self.control_group_1,
             text="Home (Top Right)",
             height=40,
             fg_color="#23272e",
             command=self.find_top_right,
         ).pack(fill="x", padx=10, pady=(10, 10))
 
-        ctk.CTkButton(
-            self.control_group_2,
-            text="Home (Center)",
-            height=40,
-            fg_color="#23272e",
-            command=self.find_top_right,
-        ).pack(fill="x", padx=10, pady=(10, 10))
+        # ctk.CTkButton(
+        #     self.control_group_2,
+        #     text="Home (Center)",
+        #     height=40,
+        #     fg_color="#23272e",
+        #     command=self.find_top_right,
+        # ).pack(fill="x", padx=10, pady=(10, 10))
 
         # ctk.CTkButton(
         #     self.control_group_2,
@@ -156,6 +156,22 @@ class DashboardApp(ctk.CTk):
         #     fg_color="#23272e",
         #     command=self.extrude_points,
         # ).pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Test Extrusions",
+            height=40,
+            fg_color="#23272e",
+            command=self.test_extrusions,
+        ).pack(fill="x", padx=10, pady=(0, 10))
+        
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Lower Syringe",
+            height=40,
+            fg_color="#23272e",
+            command=self.moveSyringe,
+        ).pack(fill="x", padx=10, pady=(0, 10))
 
         ctk.CTkButton(
             self.control_group_2,
@@ -181,13 +197,6 @@ class DashboardApp(ctk.CTk):
             command= self.home_z,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
-        ctk.CTkButton(
-            self.control_group_2,
-            text="Lower Syringe",
-            height=40,
-            fg_color="#23272e",
-            command=self.moveSyringe,
-        ).pack(fill="x", padx=10, pady=(0, 10))
 
         # === XYZ Controls ===
         self.xyz_controls = ctk.CTkFrame(self.sidebar, fg_color="#1e1e1e")
@@ -257,23 +266,41 @@ class DashboardApp(ctk.CTk):
 
 
         # Z up/down buttons
-        z_buttons = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
-        z_buttons.pack(pady=(4, 10))
+        zb_buttons = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        zb_buttons.pack(pady=(4, 10))
         ctk.CTkButton(
-            z_buttons,
+            zb_buttons,
             text="Z ↑",
             width=80,
             height=30,
             command=lambda: self.GUI_move("Z", float(self.z_step_var.get()))
-        ).pack(pady=4)
+        ).grid(row=0, column=0, padx=5, pady=4)
 
         ctk.CTkButton(
-            z_buttons,
+            zb_buttons,
             text="Z ↓",
             width=80,
             height=30,
             command=lambda: self.GUI_move("Z", -float(self.z_step_var.get()))
-        ).pack()
+        ).grid(row=1, column=0, padx=5, pady=4)
+
+        # b_buttons = ctk.CTkFrame(self.xyz_controls, fg_color="transparent")
+        # b_buttons.pack(pady=(4, 10))
+        ctk.CTkButton(
+            zb_buttons,
+            text="B ↑",
+            width=80,
+            height=30,
+            command=lambda: self.GUI_move("B", -float(self.z_step_var.get()))
+        ).grid(row=0, column=1, padx=5, pady=4)
+
+        ctk.CTkButton(
+            zb_buttons,
+            text="B ↓",
+            width=80,
+            height=30,
+            command=lambda: self.GUI_move("B", float(self.z_step_var.get()))
+        ).grid(row=1, column=1, padx=5, pady=4)
 
 
         # Main camera area (fills almost all the right side)
@@ -295,7 +322,40 @@ class DashboardApp(ctk.CTk):
         self.cap = cv2.VideoCapture(0)
         self.update_camera_feed()
 
-        
+
+    def test_extrusions(self):
+        send_gcode("G92 X0 Y0 Z0 B0")
+        send_gcode("G90")
+        B_previous = 4
+        B_step = 0.1
+        B_retract = -4
+        X_move = 0
+
+        for i in range(3):
+            send_gcode(f"G1 X{X_move} F100")
+            X_move += 4
+            time.sleep(1)
+
+            send_gcode(f"G1 Z-1.5 F100")
+            send_gcode(f"G1 B{B_step + B_previous} F100")
+            time.sleep(2)
+
+            # Retraction first, slow
+            send_gcode(f"G1 B{B_step + B_previous + B_retract} F300")
+            time.sleep(0.15)
+
+            # Small XY wipe
+            #send_gcode(f"G1 X{X_move + 0.5} F150")
+
+            # Slow lift
+            send_gcode(f"G1 Z0 F80")
+
+            B_previous += B_step
+            time.sleep(0.5)
+
+        send_gcode("G1 X0 Y0 Z0 F100")
+
+
     def refresh_ports(self):
         ports = list_serial_ports()
         self.port_dropdown.configure(values=ports)
@@ -555,27 +615,32 @@ class DashboardApp(ctk.CTk):
         send_gcode("G92 X0 Y0 Z0 B0")
         send_gcode("G90")
         count = 0
-        B_previous = 0
-        B_retract = -2
-        B_step = 3
+        B_previous = 4
+        B_step = 0.1
+        B_retract = -4
         for move_dist in self.displacements:
             x_move = move_dist[0]
             y_move = move_dist[1]
             send_gcode(f"G1 X{x_move} F100")
             send_gcode(f"G1 Y{y_move} F100")
             time.sleep(1)
-            send_gcode(f"G1 Z-1 F100")
-            send_gcode(f"G1 B{B_step + B_previous} F50")
-            send_gcode(f"G1 B{B_step + B_previous + B_retract} F50")
-            B_previous = B_step + B_previous
-            time.sleep(5)
-            send_gcode(f"G1 Z0 F100")
+
+            #Extrude
+            send_gcode(f"G1 Z-1.5 F100")
+            send_gcode(f"G1 B{B_step + B_previous} F100")
+            time.sleep(2)
+
+            # Retraction first, slow
+            send_gcode(f"G1 B{B_step + B_previous + B_retract} F300")
+            time.sleep(0.15)
+
+            # Slow lift
+            send_gcode(f"G1 Z0 F80")
+            B_previous += B_step
+            time.sleep(0.5)
             print("Extruded Hole: ", count)
         send_gcode("G1 X0 Y0 Z0")
         print("Extruded All Holes: ", count)
-
-            
-
 
 
     def moveSyringe(self):

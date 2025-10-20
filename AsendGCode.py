@@ -26,15 +26,26 @@ def send_gcode(cmd):
         if 'ok' in line.lower():
             break
 
+step = 2
+retract = -2
+
+step = 2
+retract = -1.95
 # === MAIN LOOP ===
-send_gcode("G92 X0 Y0 Z0");
-with open(FILENAME, 'r', encoding='utf-8', errors='ignore') as f:
-    for raw in f:
-        line = raw.strip()
-        # skip blanks & comments
-        if not line or line.startswith(';'):
-            continue
-        send_gcode(line)
+send_gcode("G92 X0 Y0 Z0")
+send_gcode("G91")
+send_gcode("G1 Z-1 F100")
+send_gcode(f"G1 B{step} F100")
+send_gcode(f"G1 B{retract} F350")
+time.sleep(1)
+send_gcode("G1 Z2 F100")
+# with open(FILENAME, 'r', encoding='utf-8', errors='ignore') as f:
+#     for raw in f:
+#         line = raw.strip()
+#         # skip blanks & comments
+#         if not line or line.startswith(';'):
+#             continue
+#         send_gcode(line)
 
 print("Done sending G-code.")
 ser.close()
