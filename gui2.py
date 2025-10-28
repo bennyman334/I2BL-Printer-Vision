@@ -63,6 +63,7 @@ class DashboardApp(ctk.CTk):
 
         self.displacements = []
         self.syringeOffsets = np.array([0.6, -24.3, -60])
+        self.b_home = -4
         #self.syringeOffsets = np.array([0.4, -24.5, -60])
         #self.syringeOffsets = np.array([-3.6, -25.7, -60]) #x, y, z offsets to bring syringe to top right hole
         #np.array([-0.6, -30.7, -61]) #displacements to get to the top right corner
@@ -173,12 +174,20 @@ class DashboardApp(ctk.CTk):
             command=self.moveSyringe,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
+        # ctk.CTkButton(
+        #     self.control_group_2,
+        #     text="Next Extrusion",
+        #     height=40,
+        #     fg_color="#23272e",
+        #     command=self.next_extrusion,
+        # ).pack(fill="x", padx=10, pady=(0, 10))
+        
         ctk.CTkButton(
             self.control_group_2,
-            text="Next Extrusion",
+            text="Dry Run",
             height=40,
             fg_color="#23272e",
-            command=self.next_extrusion,
+            command=self.dry_run,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
         ctk.CTkButton(
@@ -195,6 +204,14 @@ class DashboardApp(ctk.CTk):
             height=40,
             fg_color="#23272e",
             command= self.home_z,
+        ).pack(fill="x", padx=10, pady=(0, 10))
+
+        ctk.CTkButton(
+            self.control_group_2,
+            text="Home Extrusion",
+            height=40,
+            fg_color="#23272e",
+            command=self.home_b_axis,
         ).pack(fill="x", padx=10, pady=(0, 10))
 
 
@@ -322,38 +339,42 @@ class DashboardApp(ctk.CTk):
         self.cap = cv2.VideoCapture(0)
         self.update_camera_feed()
 
-
+    def home_b_axis(self):
+        send_gcode("G91")
+        send_gcode(f"G1 B{self.b_home} F200")
+    
     def test_extrusions(self):
         send_gcode("G92 X0 Y0 Z0 B0")
         send_gcode("G90")
+        count = 0
         B_previous = 4
-        B_step = 0.1
-        B_retract = -4
+        B_step = 0.05
+        B_retract = 4
         X_move = 0
-
-        for i in range(3):
+        for i in range(7):
+            # x_move = move_dist[0]
+            # y_move = move_dist[1]
             send_gcode(f"G1 X{X_move} F100")
-            X_move += 4
+            X_move += 3
             time.sleep(1)
 
+            #Extrude
             send_gcode(f"G1 Z-1.5 F100")
             send_gcode(f"G1 B{B_step + B_previous} F100")
-            time.sleep(2)
+            send_gcode(f"M400") #wait until all the extrusion paste comes out
+            time.sleep(3)
 
             # Retraction first, slow
-            send_gcode(f"G1 B{B_step + B_previous + B_retract} F300")
+            send_gcode(f"G1 B{B_step + B_previous - B_retract} F300")
+            send_gcode(f"M400")  # Wait until the B move finishes
             time.sleep(0.15)
 
-            # Small XY wipe
-            #send_gcode(f"G1 X{X_move + 0.5} F150")
-
             # Slow lift
-            send_gcode(f"G1 Z0 F80")
-
+            send_gcode(f"G1 Z0 F150")
             B_previous += B_step
             time.sleep(0.5)
-
-        send_gcode("G1 X0 Y0 Z0 F100")
+            print("Extruded Hole: ", count)
+        send_gcode("G1 X0 Y0 Z0")
 
 
     def refresh_ports(self):
@@ -616,8 +637,8 @@ class DashboardApp(ctk.CTk):
         send_gcode("G90")
         count = 0
         B_previous = 4
-        B_step = 0.1
-        B_retract = -4
+        B_step = 0.05
+        B_retract = 4
         for move_dist in self.displacements:
             x_move = move_dist[0]
             y_move = move_dist[1]
@@ -628,17 +649,53 @@ class DashboardApp(ctk.CTk):
             #Extrude
             send_gcode(f"G1 Z-1.5 F100")
             send_gcode(f"G1 B{B_step + B_previous} F100")
-            time.sleep(2)
+            send_gcode("M400")
+            time.sleep(3)
 
             # Retraction first, slow
-            send_gcode(f"G1 B{B_step + B_previous + B_retract} F300")
+            send_gcode(f"G1 B{B_step + B_previous - B_retract} F300")
+            send_gcode("M400")
             time.sleep(0.15)
 
             # Slow lift
-            send_gcode(f"G1 Z0 F80")
+            send_gcode(f"G1 Z0 F150")
             B_previous += B_step
             time.sleep(0.5)
             print("Extruded Hole: ", count)
+        send_gcode("G1 X0 Y0 Z0")
+        print("Extruded All Holes: ", count)
+
+    def dry_run(self):
+        #adjust Z-axis HERE FIRST!!! <------------------
+        send_gcode("G92 X0 Y0 Z0 B0")
+        send_gcode("G90")
+        count = 0
+        # B_previous = 4
+        # B_step = 0.05
+        # B_retract = 4
+        for move_dist in self.displacements:
+            x_move = move_dist[0]
+            y_move = move_dist[1]
+            send_gcode(f"G1 X{x_move} F100")
+            send_gcode(f"G1 Y{y_move} F100")
+            time.sleep(1)
+
+            #Extrude
+            send_gcode(f"G1 Z-1.5 F100")
+            # send_gcode(f"G1 B{B_step + B_previous} F100")
+            # send_gcode("M400")
+            # time.sleep(3)
+
+            # Retraction first, slow
+            # send_gcode(f"G1 B{B_step + B_previous - B_retract} F300")
+            # send_gcode("M400")
+            # time.sleep(0.15)
+
+            # Slow lift
+            send_gcode(f"G1 Z0 F150")
+            #B_previous += B_step
+            time.sleep(0.5)
+            print("Hole Number: ", count)
         send_gcode("G1 X0 Y0 Z0")
         print("Extruded All Holes: ", count)
 
