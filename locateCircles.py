@@ -15,19 +15,19 @@ def Locate_Circles(img_path):
 
     result = client.run_workflow(
         workspace_name="circledetection-gtnkk",
-        workflow_id="custom-workflow-3",
+        workflow_id="custom-workflow-4",
         images={
             "image": img_path
         },
         use_cache=True # cache workflow definition for 15 minutes
     )
 
-    first_result = result[0]
-    visualization_b64 = first_result['polygon_visualization']
-    img_bytes = base64.b64decode(visualization_b64)
+    # first_result = result[0]
+    # visualization_b64 = first_result['polygon_visualization']['value']
+    # img_bytes = base64.b64decode(visualization_b64)
 
-    with open('output.png', 'wb') as f: 
-        f.write(img_bytes)
+    # with open('output.png', 'wb') as f: 
+    #     f.write(img_bytes)
 
     detections = result[0]['predictions']
     detections_list = detections['predictions']   # Grab the list of detections
@@ -49,7 +49,7 @@ def Locate_Circles(img_path):
 
 
 if __name__ == "__main__":
-    Locate_Circles("frames/screenshot_3_seconds.png")
+    Locate_Circles("frames/screenshot_3_seconds.jpg")
     
 
 

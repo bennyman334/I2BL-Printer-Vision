@@ -49,7 +49,7 @@ def main():
 
         # Take screenshot after 3 seconds and save
         if not screenshot_taken and (time.time() - start_time) >= 3:
-            filename = os.path.join(output_dir, "screenshot_3_seconds.png")
+            filename = os.path.join(output_dir, "screenshot_3_seconds.jpg")
             cv2.imwrite(filename, frame)
 
             img = frame
@@ -57,7 +57,7 @@ def main():
             # Undistort for nicer visualization (optional)
             newK, roi = cv2.getOptimalNewCameraMatrix(K, dist, (w,h), 1, (w,h))
             frame_undist = cv2.undistort(img, K, dist, None, newK)
-            filename_undist = os.path.join(output_dir, "screenshot_33_seconds.png")
+            filename_undist = os.path.join(output_dir, "screenshot_33_seconds.jpg")
             cv2.imwrite(filename_undist, frame_undist)
 
             # Undistort and save
